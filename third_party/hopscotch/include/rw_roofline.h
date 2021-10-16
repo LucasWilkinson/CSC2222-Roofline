@@ -9,8 +9,10 @@
 #include <cstdint>
 #include <common.h>
 
-// Roofline specific kernel
-template<size_t FLOPS_PER_ELEM>
-res_t run_rw_roofline(double allowed_time, data_t* a);
+#define DECLARE_RUN_RW_ROOFLINE(optimization) \
+  template<size_t FLOPS_PER_ELEM> res_t run_rw_roofline_##optimization (double allowed_time, data_t* a);
+
+DECLARE_RUN_RW_ROOFLINE(vectorized_balanced)
+DECLARE_RUN_RW_ROOFLINE(vectorized_unbalanced)
 
 #endif //ROOFLINE_DEMO_RW_ROOFLINE_H

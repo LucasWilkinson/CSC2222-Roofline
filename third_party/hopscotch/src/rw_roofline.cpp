@@ -51,32 +51,34 @@
 
 
 /**
- * Roofline kernel
+ * Roofline kernels
  */
 
-template<size_t FLOPS_PER_ELEM>
-void rw_roofline(data_t* __restrict__ x) {
+#define KERNEL_SIGNATURE(optimization) \
+  template<size_t FLOPS_PER_ELEM> void rw_roofline_##optimization (data_t* __restrict__ x)
+
+KERNEL_SIGNATURE(vectorized_balanced) {
   // Set constants for multiply and add
-  const VEC_DATA_T rv = VEC_FUNC(set1,1.0 + 1e-6);
-  const VEC_DATA_T sv = VEC_FUNC(set1,1e-6);
+  const VEC_DATA_T rv = VEC_FUNC(set1, 1.0 + 1e-6);
+  const VEC_DATA_T sv = VEC_FUNC(set1, 1e-6);
 
   // Run kernel. Manually unrolled 8 times to have enough independent
   // instrustions in the reservation station to keep all the FMA units
   // busy. Unrolling more may result in register spilling.
 #pragma omp parallel for
-  for(uint64_t i = 0; i < WSS_ELEMS; i+=VEC_ELEMS*8){
+  for (uint64_t i = 0; i < WSS_ELEMS; i += VEC_ELEMS * 8) {
     // Load 8 array elements into registers
-    VEC_DATA_T xv1 = VEC_FUNC(load, &x[i+(VEC_ELEMS*0)]);
-    VEC_DATA_T xv2 = VEC_FUNC(load, &x[i+(VEC_ELEMS*1)]);
-    VEC_DATA_T xv3 = VEC_FUNC(load, &x[i+(VEC_ELEMS*2)]);
-    VEC_DATA_T xv4 = VEC_FUNC(load, &x[i+(VEC_ELEMS*3)]);
-    VEC_DATA_T xv5 = VEC_FUNC(load, &x[i+(VEC_ELEMS*4)]);
-    VEC_DATA_T xv6 = VEC_FUNC(load, &x[i+(VEC_ELEMS*5)]);
-    VEC_DATA_T xv7 = VEC_FUNC(load, &x[i+(VEC_ELEMS*6)]);
-    VEC_DATA_T xv8 = VEC_FUNC(load, &x[i+(VEC_ELEMS*7)]);
+    VEC_DATA_T xv1 = VEC_FUNC(load, &x[i + (VEC_ELEMS * 0)]);
+    VEC_DATA_T xv2 = VEC_FUNC(load, &x[i + (VEC_ELEMS * 1)]);
+    VEC_DATA_T xv3 = VEC_FUNC(load, &x[i + (VEC_ELEMS * 2)]);
+    VEC_DATA_T xv4 = VEC_FUNC(load, &x[i + (VEC_ELEMS * 3)]);
+    VEC_DATA_T xv5 = VEC_FUNC(load, &x[i + (VEC_ELEMS * 4)]);
+    VEC_DATA_T xv6 = VEC_FUNC(load, &x[i + (VEC_ELEMS * 5)]);
+    VEC_DATA_T xv7 = VEC_FUNC(load, &x[i + (VEC_ELEMS * 6)]);
+    VEC_DATA_T xv8 = VEC_FUNC(load, &x[i + (VEC_ELEMS * 7)]);
 
     // Do FMA operations required number of times
-    for(uint64_t j = 0; j < FLOPS_PER_ELEM/2; ++j) {
+    for (uint64_t j = 0; j < FLOPS_PER_ELEM / 2; ++j) {
       xv1 = VEC_FUNC(fmadd, xv1, rv, sv);
       xv2 = VEC_FUNC(fmadd, xv2, rv, sv);
       xv3 = VEC_FUNC(fmadd, xv3, rv, sv);
@@ -100,31 +102,84 @@ void rw_roofline(data_t* __restrict__ x) {
     }
 
     // Store the result
-    VEC_FUNC(store, &x[i+(VEC_ELEMS*0)], xv1);
-    VEC_FUNC(store, &x[i+(VEC_ELEMS*1)], xv2);
-    VEC_FUNC(store, &x[i+(VEC_ELEMS*2)], xv3);
-    VEC_FUNC(store, &x[i+(VEC_ELEMS*3)], xv4);
-    VEC_FUNC(store, &x[i+(VEC_ELEMS*4)], xv5);
-    VEC_FUNC(store, &x[i+(VEC_ELEMS*5)], xv6);
-    VEC_FUNC(store, &x[i+(VEC_ELEMS*6)], xv7);
-    VEC_FUNC(store, &x[i+(VEC_ELEMS*7)], xv8);
+    VEC_FUNC(store, &x[i + (VEC_ELEMS * 0)], xv1);
+    VEC_FUNC(store, &x[i + (VEC_ELEMS * 1)], xv2);
+    VEC_FUNC(store, &x[i + (VEC_ELEMS * 2)], xv3);
+    VEC_FUNC(store, &x[i + (VEC_ELEMS * 3)], xv4);
+    VEC_FUNC(store, &x[i + (VEC_ELEMS * 4)], xv5);
+    VEC_FUNC(store, &x[i + (VEC_ELEMS * 5)], xv6);
+    VEC_FUNC(store, &x[i + (VEC_ELEMS * 6)], xv7);
+    VEC_FUNC(store, &x[i + (VEC_ELEMS * 7)], xv8);
   }
 }
 
-template<size_t FLOPS_PER_ELEM>
-res_t run_rw_roofline(double allowed_time, data_t* a){
-  res_t result;
-  run_kernel(rw_roofline<FLOPS_PER_ELEM>(a), allowed_time, result);
-  result.bytes_read = result.iters * WSS_ELEMS * sizeof(data_t);
-  result.bytes_write = result.bytes_read;
-  return result;
+KERNEL_SIGNATURE(vectorized_unbalanced) {
+  // Set constants for multiply and add
+  const VEC_DATA_T rv = VEC_FUNC(set1, 1.0 + 1e-6);
+  const VEC_DATA_T sv = VEC_FUNC(set1, 1e-6);
+
+  // Run kernel. Manually unrolled 8 times to have enough independent
+  // instrustions in the reservation station to keep all the FMA units
+  // busy. Unrolling more may result in register spilling.
+#pragma omp parallel for
+  for (uint64_t i = 0; i < WSS_ELEMS; i += VEC_ELEMS * 8) {
+    // Load 8 array elements into registers
+    VEC_DATA_T xv1 = VEC_FUNC(load, &x[i + (VEC_ELEMS * 0)]);
+    VEC_DATA_T xv2 = VEC_FUNC(load, &x[i + (VEC_ELEMS * 1)]);
+    VEC_DATA_T xv3 = VEC_FUNC(load, &x[i + (VEC_ELEMS * 2)]);
+    VEC_DATA_T xv4 = VEC_FUNC(load, &x[i + (VEC_ELEMS * 3)]);
+    VEC_DATA_T xv5 = VEC_FUNC(load, &x[i + (VEC_ELEMS * 4)]);
+    VEC_DATA_T xv6 = VEC_FUNC(load, &x[i + (VEC_ELEMS * 5)]);
+    VEC_DATA_T xv7 = VEC_FUNC(load, &x[i + (VEC_ELEMS * 6)]);
+    VEC_DATA_T xv8 = VEC_FUNC(load, &x[i + (VEC_ELEMS * 7)]);
+
+    for (uint64_t j = 0; j < FLOPS_PER_ELEM; ++j) {
+      xv1 = VEC_FUNC(mul, xv1, sv);
+      xv2 = VEC_FUNC(mul, xv2, sv);
+      xv3 = VEC_FUNC(mul, xv3, sv);
+      xv4 = VEC_FUNC(mul, xv4, sv);
+      xv5 = VEC_FUNC(mul, xv5, sv);
+      xv6 = VEC_FUNC(mul, xv6, sv);
+      xv7 = VEC_FUNC(mul, xv7, sv);
+      xv8 = VEC_FUNC(mul, xv8, sv);
+    }
+
+    // Store the result
+    VEC_FUNC(store, &x[i + (VEC_ELEMS * 0)], xv1);
+    VEC_FUNC(store, &x[i + (VEC_ELEMS * 1)], xv2);
+    VEC_FUNC(store, &x[i + (VEC_ELEMS * 2)], xv3);
+    VEC_FUNC(store, &x[i + (VEC_ELEMS * 3)], xv4);
+    VEC_FUNC(store, &x[i + (VEC_ELEMS * 4)], xv5);
+    VEC_FUNC(store, &x[i + (VEC_ELEMS * 5)], xv6);
+    VEC_FUNC(store, &x[i + (VEC_ELEMS * 6)], xv7);
+    VEC_FUNC(store, &x[i + (VEC_ELEMS * 7)], xv8);
+  }
 }
 
-//
-// Instantiate required kernels for profiling
-//
-template res_t run_rw_roofline<2>(double allowed_time, data_t* a);
-//template res_t run_rw_roofline<4>(double allowed_time, data_t* a);
-//template res_t run_rw_roofline<8>(double allowed_time, data_t* a);
-//template res_t run_rw_roofline<16>(double allowed_time, data_t* a);
-template res_t run_rw_roofline<8192>(double allowed_time, data_t* a);
+/**
+ * Runners
+ */
+#define DEFINE_RUN_RW_ROOFLINE(optimization)                                          \
+  template<size_t FLOPS_PER_ELEM>                                                     \
+  res_t run_rw_roofline_##optimization (double allowed_time, data_t* a){              \
+    res_t result;                                                                     \
+    run_kernel(rw_roofline_##optimization <FLOPS_PER_ELEM>(a), allowed_time, result); \
+    result.bytes_read = result.iters * WSS_ELEMS * sizeof(data_t);                    \
+    result.bytes_write = result.bytes_read;                                           \
+    return result;                                                                    \
+  }
+
+DEFINE_RUN_RW_ROOFLINE(vectorized_balanced)
+DEFINE_RUN_RW_ROOFLINE(vectorized_unbalanced)
+
+/**
+ * Instantiate required kernels for profiling
+ */
+
+#define INSTANTIATE_RUN_RW_ROOFLINE(optimization, flops_per_elem)                    \
+  template res_t run_rw_roofline_##optimization <flops_per_elem>(double allowed_time, data_t* a);
+
+
+INSTANTIATE_RUN_RW_ROOFLINE(vectorized_balanced, 2)
+INSTANTIATE_RUN_RW_ROOFLINE(vectorized_balanced, 8192)
+INSTANTIATE_RUN_RW_ROOFLINE(vectorized_unbalanced, 8192)

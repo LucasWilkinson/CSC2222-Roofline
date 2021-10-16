@@ -6,11 +6,6 @@
 
 set(THIRD_PARTY_FOLDER "third_party" PARENT_SCOPE)
 
-function(add_third_party_dependency_plot TARGET)
-    # HEADER ONLY, only need `target_include_directories`
-    target_include_directories(${TARGET} PUBLIC "${THIRD_PARTY_FOLDER}/plot/include")
-endfunction()
-
 function(add_third_party_dependency_hopscotch TARGET)
     target_include_directories(${TARGET} PUBLIC "${THIRD_PARTY_FOLDER}/hopscotch/include")
     # TODO: [Lucas] Cleanup
