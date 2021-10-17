@@ -1,7 +1,7 @@
 #include <iostream>
 
 #include <graphs.hpp>
-#include <rw_roofline.h>
+#include "micro-benchmarks/rw_roofline.h"
 
 /*******************************************************************
  *  Micro Benchmarks

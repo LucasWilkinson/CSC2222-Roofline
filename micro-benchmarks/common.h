@@ -6,6 +6,8 @@
  * Author: Alif Ahmed
  * Date: Sep 16, 2019
  *
+ * Source: https://github.com/alifahmed/hopscotch
+ *
  *****************************************************************************/
 #ifndef _COMMON_H_
 #define _COMMON_H_

@@ -11,13 +11,17 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 add_compile_options(-march=native)
 
+add_compile_options(-Wno-format -Wno-deprecated-declarations) # Warnings from third party code
+
 # Pull in embedded third-party dependencies
 add_subdirectory(third_party)
 
-add_executable(roofline-demo main.cpp third_party/hopscotch/src/rw_roofline.cpp third_party/hopscotch/include/rw_roofline.h third_party/hopscotch/src/common.cpp third_party/hopscotch/include/common.h)
+add_executable(roofline-demo main.cpp
+    micro-benchmarks/rw_roofline.cpp micro-benchmarks/rw_roofline.h
+    micro-benchmarks/common.cpp micro-benchmarks/common.h
+)
 
 # Add embedded third-party dependencies to `CSC2222_Roofline` target
-add_third_party_dependency_hopscotch(roofline-demo)
 add_third_party_dependency_tables_and_graphs(roofline-demo)
 
 find_package(OpenMP)
